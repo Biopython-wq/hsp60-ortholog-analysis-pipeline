@@ -16,12 +16,4 @@ Comparative analysis of HSP60/GroEL protein sequences using pairwise identity, d
 
 
 
-print("Ortholog groups saved")
 
-
-# Print
-print("\n=== SIMILARITY MATRIX ===")
-print(matrix_df)
-
-print("\n=== ORTHOLOG GROUPS ===")
-print(final_df)
