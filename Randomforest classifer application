@@ -1,1 +1,100 @@
-Classification into different genetype based on nucleotide sequence
+#Classification into different genetype based on nucleotide sequence
+rom sklearn.preprocessing import LabelEncoder
+from Bio import SeqIO
+from Bio.Seq import Seq
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import classification_report
+
+data = pd.read_csv("test.csv")
+print(data["GeneType"])
+
+for df in [data]:
+    if  "Unnamed: 0"in df.columns:
+        df.drop(columns="Unnamed: 0",inplace=True)
+def clean(seq):
+    seq= seq.replace("<","").replace(">","")
+    seq="".join(seq.split())
+    return seq
+data["NucleotideSequence"]=data["NucleotideSequence"].apply(clean)
+
+genetype=data["GeneType"]
+encode = LabelEncoder()
+encoded=encode.fit_transform(genetype)
+#check for non ACGT
+def check(seq):
+    bad =set()
+    for s in seq:
+        bad|=set(s)-{"A","C","G","T"}
+    return bad
+# # print(check(data["NucleotideSequence"]))
+def countseq(sequence):
+    count = {"A":0,"T":0,"G":0,"C":0}
+    total=sum(len(seq) for seq in sequence)
+    for seq in sequence:
+        for base in seq:
+            if base in count:
+                count[base]+=1
+    for base in count:
+        count[base]/=total
+    return count
+group=df.groupby("GeneType")["NucleotideSequence"].apply(countseq)
+# print(group)
+xdata=data["NucleotideSequence"]
+# print(xdata)
+convert=pd.DataFrame({
+    "sequence":xdata,
+    "label":genetype
+})
+classes= sorted(convert["label"].unique())
+ntcontentperclass=[]
+for cls in classes:
+    seq=convert[convert["label"]==cls]["sequence"]
+    ntcontentperclass.append(countseq(seq))
+dfc=pd.DataFrame(ntcontentperclass,index=classes)
+dfc.plot(kind="bar",figsize=(10,5))
+# # # print(convert)
+# # plt.show()
+
+dfr =pd.read_csv("test.csv")
+nt=xdata
+ydata=genetype
+revcomlst=[]
+labellst=[]
+    # print(nt)
+for sequence,label in zip(nt,ydata):
+    dna = Seq(sequence)
+    revcom = dna.reverse_complement().lower()
+    revcomlst.append(str(dna.reverse_complement()))
+    labellst.append(label)
+    revcomlst.append(str(dna.complement()))
+    labellst.append(label)
+    revcomlst.append(str(dna[::-1]))
+    labellst.append(label)
+    revcomlst.append(str(dna))
+    labellst.append(label)
+augmentedseq=np.array(revcomlst)
+augmentedlabel=np.array(labellst)
+# print(augmentedlabel)
+#countvectorize
+sequences=augmentedseq
+labeseq=augmentedlabel
+print(labeseq)
+X = sequences
+classes=sorted(np.unique(labeseq))
+li=LabelEncoder()
+y=li.fit_transform(labeseq)
+# # print(y)
+X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.2,random_state=42)
+vect=CountVectorizer(analyzer="char",ngram_range=(3,6))
+Xtrain=vect.fit_transform(X_train)
+Xtest=vect.transform(X_test)
+
+model =RandomForestClassifier(n_estimators=500,max_depth=70,class_weight="balanced_subsample",random_state=42,min_samples_split=2)
+model.fit(Xtrain,y_train)
+pred=model.predict(Xtest)
+accuracy=model.score(Xtest,y_test)
+print(classification_report(y_test,pred))
